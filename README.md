@@ -8,8 +8,10 @@ The Chrome extension reads Google Meet state from the page and performs backgrou
 
 - Left click the menu bar icon to mute or unmute Google Meet.
 - Right click the icon to open the menu.
-- Menu shows current mute state.
+- Menu shows current microphone and camera state.
+- Toggle camera from the menu.
 - End the active Google Meet call from the menu.
+- Bring the active Google Meet tab/window to the front from the menu.
 - Background control through the Chrome extension.
 
 ## Project Layout

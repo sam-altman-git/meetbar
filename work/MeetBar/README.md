@@ -1,20 +1,24 @@
 # MeetBar
 
-MeetBar is a tiny macOS menu bar app for controlling an active Google Meet call.
+MeetBar is a tiny macOS menu bar app for controlling an active Google Meet call through the MeetBar Bridge Chrome extension.
 
-It detects Google Meet tabs in Chromium-style browsers and enables the menu bar icon when Meet is open. The menu provides:
+The menu bar icon reflects the current microphone state:
+
+- Green background with white mic when unmuted
+- Red background with white muted mic when muted
+- Gray background when no active call is reported
+
+Left click the icon to mute or unmute. Right click the icon to open the menu. The menu provides:
 
 - Mute or unmute microphone
+- Turn camera on or off
+- Bring Meet to front
 - End call
 - Refresh
 
-## Supported browsers in this prototype
+## Supported browser in this prototype
 
 - Google Chrome
-- Microsoft Edge
-- Brave Browser
-- Arc
-- Vivaldi
 
 ## Build
 
@@ -25,22 +29,25 @@ open .build/MeetBar.app
 
 ## Required permissions
 
-The first time MeetBar talks to your browser, macOS will ask for Automation permission. Allow it.
-
-Chromium browsers may also require:
+MeetBar listens on `127.0.0.1:17654` for the local Chrome extension bridge. Install the Chrome extension before testing meeting controls:
 
 1. Open the browser.
-2. Join a Google Meet call.
-3. Open MeetBar from the menu bar.
-4. Allow Automation permission when macOS asks.
-5. Allow Accessibility permission if macOS asks. You can also enable it manually in `System Settings > Privacy & Security > Accessibility`.
+2. Go to `chrome://extensions`.
+3. Turn on `Developer mode`.
+4. Click `Load unpacked`.
+5. Select `work/MeetBarExtension`.
+6. Join a Google Meet call.
+7. Open MeetBar from the menu bar.
 
 ## How it works
 
-MuteDeck uses a browser extension for robust web meeting support. This prototype avoids an extension by using Apple Events and keyboard shortcuts to:
+MuteDeck uses a browser extension for robust web meeting support. MeetBar uses the same broad shape:
 
-1. Find a browser tab whose URL starts with `https://meet.google.com/`.
-2. Bring that tab forward.
-3. Send Google Meet's `Command-D` mute shortcut, or close the Meet tab to end the call.
+1. A Chrome extension content script runs inside `https://meet.google.com/*`.
+2. The extension reads microphone/camera state from Meet controls.
+3. The extension posts state to the local MeetBar bridge.
+4. MeetBar queues commands through the local bridge.
+5. The extension clicks the Meet controls in the background for microphone, camera, and end-call actions.
+6. The extension uses Chrome tab/window APIs to bring Meet to the front.
 
-That keeps the app small and avoids Chrome's `Allow JavaScript from Apple Events` setting, but a production version should add a browser extension for accurate mute state, better leave-call behavior, Meet UI changes, and multiple active calls.
+This avoids Chrome AppleScript JavaScript permissions and keeps background control reliable for Google Meet. A production version should package and sign the app/extension together and use a hardened local bridge protocol.
