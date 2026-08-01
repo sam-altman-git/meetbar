@@ -7,11 +7,9 @@ The Chrome extension reads Google Meet state from the page and performs backgrou
 ## Features
 
 - Left click the menu bar icon to mute or unmute Google Meet.
-- Right click the icon to open the menu.
+- Right click the icon to open settings/status utilities.
 - Menu shows current microphone and camera state.
-- Toggle camera from the menu.
-- End the active Google Meet call from the menu.
-- Bring the active Google Meet tab/window to the front from the menu.
+- Toggle camera, end call, and bring Meet to front from expanded controls.
 - Settings panel for expanded controls trigger, layout, and visible actions.
 - Background control through the Chrome extension.
 
@@ -25,6 +23,8 @@ MeetBar can show a compact expanded controls surface from the menu bar icon.
 - Visible options: End Call, Camera Toggle, Mic Toggle, Bring to Front
 
 When the trigger is `NONE`, the app keeps the simple behavior: left click mutes/unmutes and right click opens the menu. When the trigger is `HOVER` or `CLICK`, the selected expanded controls appear according to the configured type.
+
+Expanded controls stay open while the pointer is over the icon or controls, rebuild when Meet state changes, and close when clicking outside.
 
 ## Project Layout
 

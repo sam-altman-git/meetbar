@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import Network
 
-struct MeetState {
+struct MeetState: Equatable {
     var inCall: Bool
     var muted: Bool?
     var cameraOff: Bool?
@@ -613,14 +613,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.imagePosition = .imageOnly
         button.target = self
         button.action = #selector(statusItemClicked)
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.sendAction(on: [.leftMouseUp])
         installMouseMonitors()
     }
 
     @objc private func refresh() {
+        let previousState = state
         state = bridge.currentState()
         DispatchQueue.main.async {
             self.updateIcon()
+            if self.expandPopover != nil, previousState != self.state {
+                self.rebuildExpandedOptions()
+            }
         }
     }
 
@@ -676,7 +680,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        if event.type == .rightMouseUp || event.modifierFlags.contains(.control) {
+        if event.modifierFlags.contains(.control) {
             showMenu()
             return
         }
@@ -691,13 +695,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func installMouseMonitors() {
-        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
-            self?.handleMouseMoved(at: NSEvent.mouseLocation)
+        localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            if self?.shouldOpenContextMenu(for: event) == true {
+                self?.showMenu(with: event)
+                return nil
+            }
+
+            if event.type == .mouseMoved {
+                self?.handleMouseMoved(at: NSEvent.mouseLocation)
+            } else {
+                self?.closeExpandedOptionsIfClickIsOutside(NSEvent.mouseLocation)
+            }
             return event
         }
-        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved]) { [weak self] _ in
-            self?.handleMouseMoved(at: NSEvent.mouseLocation)
+        globalMouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            if event.type == .mouseMoved {
+                self?.handleMouseMoved(at: NSEvent.mouseLocation)
+            } else {
+                self?.closeExpandedOptionsIfClickIsOutside(NSEvent.mouseLocation)
+            }
         }
+    }
+
+    private func shouldOpenContextMenu(for event: NSEvent) -> Bool {
+        let isContextClick = event.type == .rightMouseDown || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+        guard isContextClick else { return false }
+        return statusItemScreenRect()?.contains(NSEvent.mouseLocation) == true
     }
 
     private func handleMouseMoved(at screenPoint: NSPoint) {
@@ -753,11 +776,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return popoverWindow.frame.insetBy(dx: -8, dy: -8).contains(screenPoint)
     }
 
-    private func showMenu() {
+    private func closeExpandedOptionsIfClickIsOutside(_ screenPoint: NSPoint) {
+        guard expandPopover != nil else { return }
+        guard !isPointInsideHoverRegion(screenPoint) else { return }
+        hoverOpenWorkItem?.cancel()
+        hoverCloseWorkItem?.cancel()
+        isHoveringStatusItem = false
         closeExpandedOptions()
-        statusItem.menu = buildMenu()
-        statusItem.button?.performClick(nil)
-        statusItem.menu = nil
+    }
+
+    private func showMenu(with event: NSEvent? = nil) {
+        closeExpandedOptions()
+        guard let button = statusItem.button else { return }
+        let menu = buildMenu()
+        if let event {
+            NSMenu.popUpContextMenu(menu, with: event, for: button)
+        } else {
+            menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
+        }
     }
 
     private func showExpandedOptions() {
@@ -770,6 +806,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentViewController = expandedOptionsViewController()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         expandPopover = popover
+    }
+
+    private func rebuildExpandedOptions() {
+        guard expandPopover != nil else { return }
+        showExpandedOptions()
     }
 
     private func closeExpandedOptions() {
@@ -875,30 +916,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             titleItem.isEnabled = false
             menu.addItem(titleItem)
         }
-
-        menu.addItem(.separator())
-
-        let muteTitle = state.muted == true ? "Unmute Microphone" : "Mute Microphone"
-        let mute = NSMenuItem(title: muteTitle, action: #selector(toggleMic), keyEquivalent: "")
-        mute.target = self
-        mute.isEnabled = state.inCall
-        menu.addItem(mute)
-
-        let cameraTitle = state.cameraOff == true ? "Turn Camera On" : "Turn Camera Off"
-        let camera = NSMenuItem(title: cameraTitle, action: #selector(toggleCamera), keyEquivalent: "")
-        camera.target = self
-        camera.isEnabled = state.inCall
-        menu.addItem(camera)
-
-        let bringToFront = NSMenuItem(title: "Bring Meet to Front", action: #selector(bringMeetToFront), keyEquivalent: "")
-        bringToFront.target = self
-        bringToFront.isEnabled = state.inCall
-        menu.addItem(bringToFront)
-
-        let leave = NSMenuItem(title: "End Call", action: #selector(endCall), keyEquivalent: "")
-        leave.target = self
-        leave.isEnabled = state.inCall
-        menu.addItem(leave)
 
         menu.addItem(.separator())
 
