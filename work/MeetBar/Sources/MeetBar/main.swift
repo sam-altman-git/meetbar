@@ -35,10 +35,10 @@ enum ExpandType: String, CaseIterable {
 }
 
 enum ExpandOption: String, CaseIterable {
-    case endCall = "End Call"
-    case cameraToggle = "Camera Toggle"
     case micToggle = "Mic Toggle"
+    case cameraToggle = "Camera Toggle"
     case bringToFront = "Bring to Front"
+    case endCall = "End Call"
 }
 
 final class AppSettings {

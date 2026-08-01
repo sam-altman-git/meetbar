@@ -27,10 +27,10 @@ Settings include:
 - Expand options type: `POPOVER` or `STRIP`
 - Hover open delay and hover close delay in milliseconds when trigger is `HOVER`, editable with numeric fields and steppers
 - Visible expand options:
-  - End Call
-  - Camera Toggle
   - Mic Toggle
+  - Camera Toggle
   - Bring to Front
+  - End Call
 
 When the trigger is `NONE`, the expanded-options settings are disabled and MeetBar keeps the simple left-click mute/unmute behavior. When the trigger is `HOVER` or `CLICK`, MeetBar shows the selected controls from the menu bar icon using the configured layout.
 

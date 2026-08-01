@@ -20,7 +20,7 @@ MeetBar can show a compact expanded controls surface from the menu bar icon.
 - Trigger: `NONE`, `HOVER`, or `CLICK`
 - Type: `POPOVER` or `STRIP`
 - Hover open and close delays in milliseconds when trigger is `HOVER`
-- Visible options: End Call, Camera Toggle, Mic Toggle, Bring to Front
+- Visible options: Mic Toggle, Camera Toggle, Bring to Front, End Call
 
 When the trigger is `NONE`, the app keeps the simple behavior: left click mutes/unmutes and right click opens the menu. When the trigger is `HOVER` or `CLICK`, the selected expanded controls appear according to the configured type.
 
