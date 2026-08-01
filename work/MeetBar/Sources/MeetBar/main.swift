@@ -5,6 +5,7 @@ import Network
 struct MeetState {
     var inCall: Bool
     var muted: Bool?
+    var cameraOff: Bool?
     var browser: String?
     var title: String?
     var message: String?
@@ -17,13 +18,15 @@ struct ScriptResult {
 
 enum MeetAction: String {
     case toggleMic = "toggleMic"
+    case toggleCamera = "toggleCamera"
     case leave = "leave"
+    case bringToFront = "bringToFront"
 }
 
 final class LocalMeetBridge {
     private let queue = DispatchQueue(label: "local.meetbar.bridge")
     private var listener: NWListener?
-    private var state = MeetState(inCall: false, muted: nil, browser: "Chrome extension", title: nil, message: "Waiting for MeetBar Chrome extension")
+    private var state = MeetState(inCall: false, muted: nil, cameraOff: nil, browser: "Chrome extension", title: nil, message: "Waiting for MeetBar Chrome extension")
     private var commandId = 0
     private var pendingAction: String?
 
@@ -50,7 +53,16 @@ final class LocalMeetBridge {
     func send(_ action: MeetAction) -> String {
         queue.sync {
             commandId += 1
-            pendingAction = action == .toggleMic ? "toggleMute" : "leave"
+            switch action {
+            case .toggleMic:
+                pendingAction = "toggleMute"
+            case .toggleCamera:
+                pendingAction = "toggleCamera"
+            case .leave:
+                pendingAction = "leave"
+            case .bringToFront:
+                pendingAction = "bringToFront"
+            }
             lastMessage = "Queued \(pendingAction ?? "command") for extension"
             return lastMessage
         }
@@ -81,8 +93,9 @@ final class LocalMeetBridge {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 let inCall = json["inCall"] as? Bool ?? false
                 let muted = json["muted"] as? Bool
+                let cameraOff = json["cameraOff"] as? Bool
                 let title = json["title"] as? String
-                state = MeetState(inCall: inCall, muted: muted, browser: "Chrome extension", title: title, message: nil)
+                state = MeetState(inCall: inCall, muted: muted, cameraOff: cameraOff, browser: "Chrome extension", title: title, message: nil)
                 lastMessage = inCall ? "Extension reports active Meet tab" : "Extension connected; no active call"
             }
             return httpResponse("{\"ok\":true}")
@@ -151,7 +164,7 @@ final class BrowserController {
         if !sawRunningBrowser {
             lastMessage = "Open Chrome, Edge, Brave, Arc, or Vivaldi."
         }
-        return MeetState(inCall: false, muted: nil, browser: nil, title: nil, message: "No active Google Meet call")
+        return MeetState(inCall: false, muted: nil, cameraOff: nil, browser: nil, title: nil, message: "No active Google Meet call")
     }
 
     func perform(_ action: MeetAction) -> String {
@@ -221,6 +234,7 @@ final class BrowserController {
         return MeetState(
             inCall: true,
             muted: nil,
+            cameraOff: nil,
             browser: browser,
             title: parts[1],
             message: nil
@@ -288,7 +302,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let bridge = LocalMeetBridge()
     private var timer: Timer?
-    private var state = MeetState(inCall: false, muted: nil, browser: nil, title: nil, message: nil)
+    private var state = MeetState(inCall: false, muted: nil, cameraOff: nil, browser: nil, title: nil, message: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -391,7 +405,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusTitle: String
         if state.inCall {
             let mic = state.muted == true ? "Muted" : state.muted == false ? "Live" : "Mic unknown"
-            statusTitle = "\(mic) in \(state.browser ?? "browser")"
+            let camera = state.cameraOff == true ? "Camera off" : state.cameraOff == false ? "Camera on" : "Camera unknown"
+            statusTitle = "\(mic), \(camera) in \(state.browser ?? "browser")"
         } else {
             statusTitle = "No active Google Meet call"
         }
@@ -418,6 +433,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mute.isEnabled = state.inCall
         menu.addItem(mute)
 
+        let cameraTitle = state.cameraOff == true ? "Turn Camera On" : "Turn Camera Off"
+        let camera = NSMenuItem(title: cameraTitle, action: #selector(toggleCamera), keyEquivalent: "")
+        camera.target = self
+        camera.isEnabled = state.inCall
+        menu.addItem(camera)
+
+        let bringToFront = NSMenuItem(title: "Bring Meet to Front", action: #selector(bringMeetToFront), keyEquivalent: "")
+        bringToFront.target = self
+        bringToFront.isEnabled = state.inCall
+        menu.addItem(bringToFront)
+
         let leave = NSMenuItem(title: "End Call", action: #selector(endCall), keyEquivalent: "")
         leave.target = self
         leave.isEnabled = state.inCall
@@ -441,6 +467,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func toggleMic() {
         _ = bridge.send(.toggleMic)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.refresh() }
+    }
+
+    @objc private func toggleCamera() {
+        _ = bridge.send(.toggleCamera)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.refresh() }
+    }
+
+    @objc private func bringMeetToFront() {
+        _ = bridge.send(.bringToFront)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.refresh() }
     }
 

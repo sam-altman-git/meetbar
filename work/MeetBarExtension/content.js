@@ -5,16 +5,23 @@ function meetButton(regex) {
 
 function readState() {
   const muteButton = meetButton(/Turn on microphone|Turn off microphone|Mute|Unmute|microphone/i);
+  const cameraButton = meetButton(/Turn on camera|Turn off camera|camera/i);
   const leaveButton = meetButton(/^(Leave call|Leave meeting|Leave)$|Leave call/i);
-  const label = muteButton?.getAttribute("aria-label") || "";
+  const micLabel = muteButton?.getAttribute("aria-label") || "";
+  const cameraLabel = cameraButton?.getAttribute("aria-label") || "";
 
   let muted = null;
-  if (/Turn on microphone|Unmute|microphone is off/i.test(label)) muted = true;
-  if (/Turn off microphone|Mute|microphone is on/i.test(label)) muted = false;
+  if (/Turn on microphone|Unmute|microphone is off/i.test(micLabel)) muted = true;
+  if (/Turn off microphone|Mute|microphone is on/i.test(micLabel)) muted = false;
+
+  let cameraOff = null;
+  if (/Turn on camera|camera is off/i.test(cameraLabel)) cameraOff = true;
+  if (/Turn off camera|camera is on/i.test(cameraLabel)) cameraOff = false;
 
   return {
     inCall: Boolean(leaveButton),
     muted,
+    cameraOff,
     title: document.title || "Google Meet",
     url: location.href,
     at: Date.now(),
@@ -43,6 +50,10 @@ chrome.runtime.onMessage.addListener((message) => {
 
   if (message.action === "leave") {
     clickButton(/^(Leave call|Leave meeting|Leave)$|Leave call/i);
+  }
+
+  if (message.action === "toggleCamera") {
+    clickButton(/Turn on camera|Turn off camera|camera/i);
   }
 });
 

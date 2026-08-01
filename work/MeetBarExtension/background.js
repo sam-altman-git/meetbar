@@ -16,6 +16,14 @@ async function postState(state) {
 
 async function sendCommandToMeetTabs(command) {
   const tabs = await chrome.tabs.query({ url: "https://meet.google.com/*" });
+  if (command.action === "bringToFront") {
+    const tab = tabs[0];
+    if (!tab?.id || !tab.windowId) return;
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+    return;
+  }
+
   for (const tab of tabs) {
     if (!tab.id) continue;
     try {
