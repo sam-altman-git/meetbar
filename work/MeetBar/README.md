@@ -14,7 +14,25 @@ Left click the icon to mute or unmute. Right click the icon to open the menu. Th
 - Turn camera on or off
 - Bring Meet to front
 - End call
+- Settings
 - Refresh
+
+## Settings
+
+Open settings from the right-click menu.
+
+Settings include:
+
+- Expand options trigger: `NONE`, `HOVER`, or `CLICK`
+- Expand options type: `POPOVER` or `STRIP`
+- Hover open delay and hover close delay in milliseconds when trigger is `HOVER`, editable with numeric fields and steppers
+- Visible expand options:
+  - End Call
+  - Camera Toggle
+  - Mic Toggle
+  - Bring to Front
+
+When the trigger is `NONE`, the expanded-options settings are disabled and MeetBar keeps the simple left-click mute/unmute behavior. When the trigger is `HOVER` or `CLICK`, MeetBar shows the selected controls from the menu bar icon using the configured layout.
 
 ## Supported browser in this prototype
 

@@ -15,6 +15,8 @@ It handles commands from the MeetBar app to:
 - End the call
 - Bring the Meet tab/window to the front
 
+These commands can come from the right-click menu or from MeetBar's configurable expanded controls surface.
+
 ## Install for local testing
 
 1. Open `chrome://extensions`.

@@ -12,7 +12,19 @@ The Chrome extension reads Google Meet state from the page and performs backgrou
 - Toggle camera from the menu.
 - End the active Google Meet call from the menu.
 - Bring the active Google Meet tab/window to the front from the menu.
+- Settings panel for expanded controls trigger, layout, and visible actions.
 - Background control through the Chrome extension.
+
+## Expanded Controls
+
+MeetBar can show a compact expanded controls surface from the menu bar icon.
+
+- Trigger: `NONE`, `HOVER`, or `CLICK`
+- Type: `POPOVER` or `STRIP`
+- Hover open and close delays in milliseconds when trigger is `HOVER`
+- Visible options: End Call, Camera Toggle, Mic Toggle, Bring to Front
+
+When the trigger is `NONE`, the app keeps the simple behavior: left click mutes/unmutes and right click opens the menu. When the trigger is `HOVER` or `CLICK`, the selected expanded controls appear according to the configured type.
 
 ## Project Layout
 
