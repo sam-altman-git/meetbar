@@ -304,6 +304,71 @@ extension SettingsWindowController: NSTextFieldDelegate {
     }
 }
 
+final class PopoverRowControl: NSControl {
+    private let normalBackground: NSColor
+    private let pressedBackground: NSColor
+
+    init(title: String, image: NSImage?, tintColor: NSColor, isDestructive: Bool) {
+        normalBackground = isDestructive
+            ? NSColor.systemRed.withAlphaComponent(0.22)
+            : NSColor.white.withAlphaComponent(0.08)
+        pressedBackground = isDestructive
+            ? NSColor.systemRed.withAlphaComponent(0.34)
+            : NSColor.white.withAlphaComponent(0.14)
+        super.init(frame: .zero)
+
+        wantsLayer = true
+        layer?.cornerRadius = 7
+        layer?.borderWidth = 1
+        layer?.backgroundColor = normalBackground.cgColor
+        layer?.borderColor = (isDestructive
+            ? NSColor.systemRed.withAlphaComponent(0.55)
+            : NSColor.white.withAlphaComponent(0.10)).cgColor
+
+        let imageView = NSImageView()
+        imageView.image = image
+        imageView.contentTintColor = tintColor
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = NSTextField(labelWithString: title)
+        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        label.textColor = tintColor
+        label.lineBreakMode = .byTruncatingTail
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        addSubview(imageView)
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            imageView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 18),
+            imageView.heightAnchor.constraint(equalToConstant: 18),
+
+            label.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 10),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        layer?.backgroundColor = pressedBackground.cgColor
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard isEnabled else { return }
+        layer?.backgroundColor = normalBackground.cgColor
+        if bounds.contains(convert(event.locationInWindow, from: nil)) {
+            sendAction(action, to: target)
+        }
+    }
+}
+
 final class LocalMeetBridge {
     private let queue = DispatchQueue(label: "local.meetbar.bridge")
     private var listener: NWListener?
@@ -819,38 +884,164 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func expandedOptionsViewController() -> NSViewController {
+        if settings.type == .popover {
+            return popoverOptionsViewController()
+        }
+        return stripOptionsViewController()
+    }
+
+    private func stripOptionsViewController() -> NSViewController {
         let controller = NSViewController()
+        let container = translucentContainer(cornerRadius: 22, alpha: 0.78)
+
         let stack = NSStackView()
-        stack.orientation = settings.type == .strip ? .horizontal : .vertical
+        stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 10
-        stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
+        stack.distribution = .fill
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
 
         let enabledOptions = ExpandOption.allCases.filter { settings.isEnabled($0) }
         if enabledOptions.isEmpty {
-            stack.addArrangedSubview(NSTextField(labelWithString: "No controls selected"))
+            let empty = NSTextField(labelWithString: "No controls selected")
+            empty.textColor = .white
+            empty.widthAnchor.constraint(equalToConstant: 150).isActive = true
+            empty.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            stack.addArrangedSubview(empty)
         } else {
             for option in enabledOptions {
-                stack.addArrangedSubview(expandedButton(for: option))
+                stack.addArrangedSubview(stripButton(for: option))
             }
         }
 
-        controller.view = stack
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 10),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10)
+        ])
+
+        controller.view = container
+        let width = CGFloat(max(enabledOptions.count, 1)) * 62 + CGFloat(max(enabledOptions.count - 1, 0)) * 8 + 20
+        controller.preferredContentSize = NSSize(width: width, height: 64)
         return controller
     }
 
-    private func expandedButton(for option: ExpandOption) -> NSButton {
-        let button = NSButton(title: title(for: option), target: self, action: selector(for: option))
-        button.bezelStyle = .rounded
-        button.image = NSImage(systemSymbolName: symbolName(for: option), accessibilityDescription: option.rawValue)
-        button.imagePosition = settings.type == .strip ? .imageOnly : .imageLeft
+    private func popoverOptionsViewController() -> NSViewController {
+        let controller = NSViewController()
+        let container = translucentContainer(cornerRadius: 0, alpha: 0.80)
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.distribution = .fill
+        stack.spacing = 6
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6),
+            container.widthAnchor.constraint(equalToConstant: 178)
+        ])
+
+        let enabledOptions = ExpandOption.allCases.filter { settings.isEnabled($0) }
+        if enabledOptions.isEmpty {
+            let empty = NSTextField(labelWithString: "No controls selected")
+            empty.textColor = .white
+            empty.widthAnchor.constraint(equalToConstant: 158).isActive = true
+            empty.heightAnchor.constraint(equalToConstant: 34).isActive = true
+            stack.addArrangedSubview(empty)
+        } else {
+            for option in enabledOptions {
+                stack.addArrangedSubview(popoverButton(for: option))
+            }
+        }
+
+        controller.view = container
+        controller.preferredContentSize = NSSize(
+            width: 178,
+            height: CGFloat(max(enabledOptions.count, 1)) * 34 + CGFloat(max(enabledOptions.count - 1, 0)) * 6 + 12
+        )
+        return controller
+    }
+
+    private func translucentContainer(cornerRadius: CGFloat, alpha: CGFloat) -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.09, green: 0.09, blue: 0.09, alpha: alpha).cgColor
+        container.layer?.cornerRadius = cornerRadius
+        container.layer?.borderWidth = 1
+        container.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
+        return container
+    }
+
+    private func popoverButton(for option: ExpandOption) -> NSView {
+        let tintColor = option == .endCall ? NSColor.systemRed : NSColor.white
+        let control = PopoverRowControl(
+            title: title(for: option),
+            image: normalizedSymbol(for: option, pointSize: 13, canvasSize: NSSize(width: 18, height: 18)),
+            tintColor: tintColor,
+            isDestructive: option == .endCall
+        )
+        control.target = self
+        control.action = selector(for: option)
+        control.toolTip = title(for: option)
+        control.isEnabled = state.inCall
+        control.widthAnchor.constraint(equalToConstant: 165).isActive = true
+        control.heightAnchor.constraint(equalToConstant: 34).isActive = true
+        return control
+    }
+
+    private func stripButton(for option: ExpandOption) -> NSButton {
+        let button = NSButton(title: "", target: self, action: selector(for: option))
+        styleTileButton(button, option: option, symbolPointSize: 18, canvasSize: NSSize(width: 26, height: 26))
+        button.imagePosition = .imageOnly
+        button.widthAnchor.constraint(equalToConstant: 62).isActive = true
+        button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        return button
+    }
+
+    private func styleTileButton(_ button: NSButton, option: ExpandOption, symbolPointSize: CGFloat, canvasSize: NSSize) {
+        button.isBordered = false
+        button.bezelStyle = .regularSquare
+        button.image = normalizedSymbol(for: option, pointSize: symbolPointSize, canvasSize: canvasSize)
         button.toolTip = title(for: option)
         button.isEnabled = state.inCall
-        if settings.type == .strip {
-            button.widthAnchor.constraint(equalToConstant: 32).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+        button.contentTintColor = option == .endCall ? NSColor.systemRed : NSColor.white
+        button.wantsLayer = true
+        button.layer?.cornerRadius = settings.type == .strip ? 10 : 7
+        button.layer?.borderWidth = 1
+        if option == .endCall {
+            button.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.22).cgColor
+            button.layer?.borderColor = NSColor.systemRed.withAlphaComponent(0.55).cgColor
+        } else {
+            button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
+            button.layer?.borderColor = NSColor.white.withAlphaComponent(0.10).cgColor
         }
-        return button
+    }
+
+    private func normalizedSymbol(for option: ExpandOption, pointSize: CGFloat, canvasSize: NSSize) -> NSImage? {
+        let configuration = NSImage.SymbolConfiguration(pointSize: pointSize, weight: .semibold)
+        guard let symbol = NSImage(systemSymbolName: symbolName(for: option), accessibilityDescription: option.rawValue)?
+            .withSymbolConfiguration(configuration) else { return nil }
+
+        let image = NSImage(size: canvasSize)
+        image.isTemplate = true
+        image.lockFocus()
+        let symbolSize = symbol.size
+        let rect = NSRect(
+            x: (canvasSize.width - symbolSize.width) / 2,
+            y: (canvasSize.height - symbolSize.height) / 2,
+            width: symbolSize.width,
+            height: symbolSize.height
+        )
+        symbol.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+        image.unlockFocus()
+        return image
     }
 
     private func title(for option: ExpandOption) -> String {

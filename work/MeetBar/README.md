@@ -36,6 +36,8 @@ When the trigger is `NONE`, the expanded-options settings are disabled and MeetB
 
 Expanded controls stay open while the pointer is over the icon or controls, rebuild when Meet state changes, and close when clicking outside.
 
+`POPOVER` uses a translucent vertical panel with labeled row tiles. `STRIP` uses a translucent horizontal panel with large icon-only tiles.
+
 ## Supported browser in this prototype
 
 - Google Chrome
