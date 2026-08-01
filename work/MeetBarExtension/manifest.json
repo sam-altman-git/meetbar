@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "MeetBar Bridge",
+  "description": "Connects Google Meet tabs to the MeetBar macOS menu bar app.",
+  "version": "0.2.0",
+  "permissions": ["tabs", "alarms"],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "http://127.0.0.1:17654/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://meet.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "MeetBar Bridge"
+  }
+}

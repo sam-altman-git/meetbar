@@ -1,0 +1,9 @@
+.DS_Store
+**/.DS_Store
+
+# Swift build output
+.build/
+**/.build/
+
+# Generated deliverables
+outputs/
