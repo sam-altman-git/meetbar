@@ -15,6 +15,14 @@ It handles commands from the MeetBar app to:
 - End the call
 - Bring the Meet tab/window to the front
 
+The microphone and camera commands only target Google Meet's local call toolbar controls. Participant controls such as "Mute <name>" are intentionally ignored.
+
+If the extension is reloaded while a Meet tab is already open, the old content script stops polling instead of reporting extension-context errors. Refresh the Meet tab after reloading the extension to run the newest content script.
+
+MeetBar keeps each command pending until the extension reports that a Meet tab handled it. If the page is not ready, the extension will retry briefly instead of dropping the first click.
+
+The content script observes Meet toolbar changes and reports state immediately when microphone or camera labels change, with a heartbeat fallback.
+
 These commands can come from the right-click menu or from MeetBar's configurable expanded controls surface.
 
 ## Install for local testing

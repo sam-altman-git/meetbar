@@ -12,6 +12,9 @@ The Chrome extension reads Google Meet state from the page and performs backgrou
 - Toggle camera, end call, and bring Meet to front from expanded controls.
 - Settings panel for expanded controls trigger, layout, and visible actions.
 - Background control through the Chrome extension.
+- Meet controls target the local call toolbar, so participant mute buttons are ignored.
+- Commands stay pending until the extension reports that a Meet tab handled them, which makes first clicks more reliable.
+- Meeting state updates are pushed from the extension when Meet changes, so the menu bar reflects mute/camera changes quickly.
 
 ## Expanded Controls
 

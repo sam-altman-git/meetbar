@@ -355,6 +355,10 @@ final class PopoverRowControl: NSControl {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     override func mouseDown(with event: NSEvent) {
         guard isEnabled else { return }
         layer?.backgroundColor = pressedBackground.cgColor
@@ -369,14 +373,22 @@ final class PopoverRowControl: NSControl {
     }
 }
 
+final class FirstMouseButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+}
+
 final class LocalMeetBridge {
     private let queue = DispatchQueue(label: "local.meetbar.bridge")
     private var listener: NWListener?
     private var state = MeetState(inCall: false, muted: nil, cameraOff: nil, browser: "Chrome extension", title: nil, message: "Waiting for MeetBar Chrome extension")
     private var commandId = 0
     private var pendingAction: String?
+    private var pendingCreatedAt: Date?
 
     var lastMessage = "Bridge starting"
+    var onStateChange: (() -> Void)?
 
     func start() {
         do {
@@ -409,6 +421,7 @@ final class LocalMeetBridge {
             case .bringToFront:
                 pendingAction = "bringToFront"
             }
+            pendingCreatedAt = Date()
             lastMessage = "Queued \(pendingAction ?? "command") for extension"
             return lastMessage
         }
@@ -443,19 +456,32 @@ final class LocalMeetBridge {
                 let title = json["title"] as? String
                 state = MeetState(inCall: inCall, muted: muted, cameraOff: cameraOff, browser: "Chrome extension", title: title, message: nil)
                 lastMessage = inCall ? "Extension reports active Meet tab" : "Extension connected; no active call"
+                DispatchQueue.main.async { [weak self] in
+                    self?.onStateChange?()
+                }
             }
             return httpResponse("{\"ok\":true}")
         }
 
         if request.hasPrefix("GET /command") {
+            expireStaleCommandIfNeeded()
             let body: String
             if let pendingAction {
                 body = "{\"id\":\(commandId),\"action\":\"\(pendingAction)\"}"
-                self.pendingAction = nil
             } else {
                 body = "{\"id\":\(commandId),\"action\":null}"
             }
             return httpResponse(body)
+        }
+
+        if request.hasPrefix("GET /ack") {
+            let ackId = queryInt(named: "id", in: request)
+            if ackId == commandId {
+                pendingAction = nil
+                pendingCreatedAt = nil
+                lastMessage = "Extension handled command \(ackId ?? commandId)"
+            }
+            return httpResponse("{\"ok\":true}")
         }
 
         if request.hasPrefix("GET /health") {
@@ -463,6 +489,29 @@ final class LocalMeetBridge {
         }
 
         return httpResponse("{\"error\":\"not found\"}", status: "404 Not Found")
+    }
+
+    private func expireStaleCommandIfNeeded() {
+        guard let pendingCreatedAt else { return }
+        if Date().timeIntervalSince(pendingCreatedAt) > 8 {
+            pendingAction = nil
+            self.pendingCreatedAt = nil
+            lastMessage = "Command expired before extension handled it"
+        }
+    }
+
+    private func queryInt(named name: String, in request: String) -> Int? {
+        guard let path = request.components(separatedBy: " ").dropFirst().first,
+              let query = path.components(separatedBy: "?").dropFirst().first else { return nil }
+
+        for pair in query.components(separatedBy: "&") {
+            let parts = pair.components(separatedBy: "=")
+            if parts.count == 2, parts[0] == name {
+                return Int(parts[1])
+            }
+        }
+
+        return nil
     }
 
     private func httpResponse(_ body: String, status: String = "200 OK") -> String {
@@ -662,9 +711,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         bridge.start()
+        bridge.onStateChange = { [weak self] in
+            self?.refresh()
+        }
         configureStatusItem()
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
             self?.refresh()
         }
         hoverPollTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -997,7 +1049,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func stripButton(for option: ExpandOption) -> NSButton {
-        let button = NSButton(title: "", target: self, action: selector(for: option))
+        let button = FirstMouseButton(title: "", target: self, action: selector(for: option))
         styleTileButton(button, option: option, symbolPointSize: 18, canvasSize: NSSize(width: 26, height: 26))
         button.imagePosition = .imageOnly
         button.widthAnchor.constraint(equalToConstant: 62).isActive = true
